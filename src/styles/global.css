@@ -218,10 +218,23 @@ body {
   background: linear-gradient(transparent, var(--bg) 24px);
 }
 
-.rounds {
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 20px;
+}
+
+.setting {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.segment-sub {
+  font-weight: 400;
+  font-size: 0.75rem;
+  opacity: 0.75;
 }
 
 .segmented {
@@ -368,8 +381,91 @@ body {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: var(--bg);
+  /* Semitransparente para que se vea el fondo de la portada. */
+  background: rgba(13, 11, 20, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 1;
+}
+
+/* ---------- Fondo con la portada difuminada ---------- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  pointer-events: none;
+}
+
+.backdrop.visible {
+  opacity: 1;
+}
+
+.backdrop-image {
+  position: absolute;
+  inset: -15%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(60px) saturate(1.1);
+  opacity: 0.45;
+  transform: scale(1.1);
+}
+
+/* Oscurece hacia los bordes y el centro, para que la portada y el texto sigan destacando. */
+.backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(13, 11, 20, 0.55), rgba(13, 11, 20, 0.85));
+}
+
+.scorebar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+}
+
+.streak {
+  color: var(--muted);
+  transition: color 0.2s;
+}
+
+.streak.hot {
+  color: #fb923c;
+  font-weight: 700;
+}
+
+.record-badge {
+  margin: 0;
+  font-weight: 700;
+  color: #facc15;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding-top: 8px;
+}
+
+.summary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
 }
 
 .game-title {
@@ -532,16 +628,55 @@ body {
 
 .results li {
   display: flex;
+  align-items: center;
   gap: 12px;
   background: var(--surface);
+  border-left: 4px solid transparent;
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 8px 14px 8px 8px;
 }
 
-.results .hit > span:first-child {
+.results .hit {
+  border-left-color: #22c55e;
+}
+
+.results .miss {
+  border-left-color: #ef4444;
+}
+
+.result-cover {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: #2c2740;
+}
+
+.result-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.result-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-points {
+  flex: none;
+  font-weight: 700;
+}
+
+.results .hit .result-points {
   color: #4ade80;
 }
 
-.results .miss > span:first-child {
+.results .miss .result-points {
   color: var(--danger);
 }

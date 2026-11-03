@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { ArtistSearch } from '../components/ArtistSearch';
 import { GenrePicker } from '../components/GenrePicker';
 import { PlaylistPicker } from '../components/PlaylistPicker';
+import { DIFFICULTIES, type Difficulty } from '../game/difficulty';
 import { loadPool, type Pool } from '../game/pool';
+import { getRecord, recordKey } from '../game/records';
 import type { GameMode, GameSource } from '../game/types';
+import { formatPoints } from '../utils/format';
 
 const MODES: { id: GameMode; label: string }[] = [
   { id: 'playlist', label: 'Playlist' },
@@ -13,22 +16,29 @@ const MODES: { id: GameMode; label: string }[] = [
 
 const ROUND_CHOICES = [5, 10, 15, 20];
 
+export interface SetupChoice {
+  rounds: number;
+  difficulty: Difficulty;
+}
+
 interface Props {
   playerReady: boolean;
   playerError: string | null;
-  initialRounds: number;
-  onReady: (source: GameSource, pool: Pool, rounds: number) => void;
+  initial: SetupChoice;
+  onReady: (source: GameSource, pool: Pool, choice: SetupChoice) => void;
 }
 
-export function Setup({ playerReady, playerError, initialRounds, onReady }: Props) {
+export function Setup({ playerReady, playerError, initial, onReady }: Props) {
   const [mode, setMode] = useState<GameMode>('playlist');
   const [source, setSource] = useState<GameSource | null>(null);
-  const [rounds, setRounds] = useState(initialRounds);
+  const [rounds, setRounds] = useState(initial.rounds);
+  const [difficulty, setDifficulty] = useState<Difficulty>(initial.difficulty);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loading = progress !== null;
   const selectedId = source?.mode === mode ? source.id : null;
+  const record = source ? getRecord(recordKey(source, difficulty, rounds)) : null;
 
   async function prepare() {
     if (!source) return;
@@ -38,7 +48,7 @@ export function Setup({ playerReady, playerError, initialRounds, onReady }: Prop
       const pool = await loadPool(source, (done, total) =>
         setProgress(`Buscando canciones… ${Math.round((done / total) * 100)}%`),
       );
-      onReady(source, pool, rounds);
+      onReady(source, pool, { rounds, difficulty });
     } catch (e) {
       setError((e as Error).message);
       setProgress(null);
@@ -70,21 +80,45 @@ export function Setup({ playerReady, playerError, initialRounds, onReady }: Prop
       </section>
 
       <footer className="setup-footer">
-        <div className="rounds">
-          <span className="muted small">Rondas</span>
-          <div className="segmented">
-            {ROUND_CHOICES.map((n) => (
-              <button
-                key={n}
-                className={`segment ${rounds === n ? 'active' : ''}`}
-                onClick={() => setRounds(n)}
-              >
-                {n}
-              </button>
-            ))}
+        <div className="settings">
+          <div className="setting">
+            <span className="muted small">Dificultad</span>
+            <div className="segmented">
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d.id}
+                  className={`segment ${difficulty === d.id ? 'active' : ''}`}
+                  onClick={() => setDifficulty(d.id)}
+                  title={`Fragmento de ${d.fragmentMs / 1000} s · puntos x${d.multiplier}`}
+                >
+                  {d.label} <span className="segment-sub">{d.fragmentMs / 1000}s</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="setting">
+            <span className="muted small">Rondas</span>
+            <div className="segmented">
+              {ROUND_CHOICES.map((n) => (
+                <button
+                  key={n}
+                  className={`segment ${rounds === n ? 'active' : ''}`}
+                  onClick={() => setRounds(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
+        {source && (
+          <p className="muted small">
+            {record
+              ? `🏆 Tu récord acá: ${formatPoints(record.score)} pts (${record.hits}/${record.rounds})`
+              : 'Todavía no tenés récord con esta combinación'}
+          </p>
+        )}
         {error && <p className="error">{error}</p>}
         {playerError && <p className="error">{playerError}</p>}
 

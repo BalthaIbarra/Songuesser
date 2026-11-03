@@ -18,6 +18,13 @@ export interface GameSource {
   imageUrl: string | null;
 }
 
+export interface Answer {
+  chosenId: string;
+  correct: boolean;
+  elapsedMs: number;
+  points: number;
+}
+
 export interface Round {
   track: Track;
   options: Track[]; // 4 opciones mezcladas, incluye la correcta
