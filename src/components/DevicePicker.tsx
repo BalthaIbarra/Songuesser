@@ -10,12 +10,15 @@ const TYPE_ICONS: Record<string, string> = {
   TV: '📺',
 };
 
-/** Elegir dónde suena la música: esta página o un dispositivo de Spotify Connect. */
+/**
+ * Plan B si el reproductor de esta página falla: hacer sonar la música en otro dispositivo
+ * de Spotify Connect. Si todo anda bien, no se muestra.
+ */
 export function DevicePicker({ player }: { player: PlayerControls }) {
   // Si el reproductor de esta página falló, lo mostramos abierto: es la única forma de jugar.
   // (En algunos celulares el reproductor web anda bien, así que no lo descartamos de antemano.)
   const needsExternal = !!player.error && !player.external;
-  const [open, setOpen] = useState(needsExternal);
+  const [open, setOpen] = useState(needsExternal || !!player.external);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,15 +44,8 @@ export function DevicePicker({ player }: { player: PlayerControls }) {
     if (open && devices === null) void refresh();
   }, [open]);
 
-  const current = player.external ? player.external.name : 'Este navegador';
-
-  if (!open) {
-    return (
-      <button className="btn btn-ghost small" onClick={() => setOpen(true)}>
-        🔈 Suena en: <strong>{current}</strong> · cambiar
-      </button>
-    );
-  }
+  // Normalmente suena en esta página y no hace falta mostrar nada.
+  if (!open) return null;
 
   return (
     <div className="devices">
