@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PlayerControls } from '../hooks/usePlayer';
-import { getDevices, isMobileBrowser, type Device } from '../spotify/player';
+import { getDevices, type Device } from '../spotify/player';
 
 const TYPE_ICONS: Record<string, string> = {
   Computer: '💻',
@@ -12,8 +12,9 @@ const TYPE_ICONS: Record<string, string> = {
 
 /** Elegir dónde suena la música: esta página o un dispositivo de Spotify Connect. */
 export function DevicePicker({ player }: { player: PlayerControls }) {
-  // En celular (o si el reproductor web falló) lo mostramos abierto: es la única forma de jugar.
-  const needsExternal = isMobileBrowser || (!!player.error && !player.external);
+  // Si el reproductor de esta página falló, lo mostramos abierto: es la única forma de jugar.
+  // (En algunos celulares el reproductor web anda bien, así que no lo descartamos de antemano.)
+  const needsExternal = !!player.error && !player.external;
   const [open, setOpen] = useState(needsExternal);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -63,17 +64,14 @@ export function DevicePicker({ player }: { player: PlayerControls }) {
 
       {needsExternal && (
         <p className="muted small">
-          {isMobileBrowser
-            ? 'Spotify no permite reproducir dentro del navegador del celular.'
-            : 'El reproductor de esta página no está disponible.'}{' '}
-          Abrí la app de Spotify en algún dispositivo (este celular, una PC o un parlante), poné
+          El reproductor de esta página no está disponible en este navegador. Abrí la app de Spotify en algún dispositivo (este celular, una PC o un parlante), poné
           cualquier canción un segundo y tocá "Buscar". Si usás la app en este mismo celular, no la
           mires: ahí se ve el nombre de la canción 😉
         </p>
       )}
 
       <div className="pick-list">
-        {!isMobileBrowser && !player.error && (
+        {!player.error && (
           <button
             className={`pick-item ${!player.external ? 'selected' : ''}`}
             onClick={() => player.selectDevice(null)}

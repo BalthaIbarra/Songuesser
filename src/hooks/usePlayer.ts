@@ -10,7 +10,7 @@ import {
 
 const ERROR_MESSAGES: Record<Spotify.ErrorEvent, string> = {
   initialization_error:
-    'Este navegador no puede reproducir con Spotify. Usá Chrome, Edge o Firefox de escritorio, o elegí otro dispositivo.',
+    'Este navegador no puede reproducir con Spotify. Probá con Chrome o elegí otro dispositivo.',
   authentication_error: 'Spotify rechazó la sesión. Cerrá sesión y volvé a entrar.',
   account_error: 'Esta cuenta no puede usar el reproductor web (hace falta Spotify Premium).',
   playback_error: 'Spotify no pudo reproducir la canción.',
@@ -18,6 +18,12 @@ const ERROR_MESSAGES: Record<Spotify.ErrorEvent, string> = {
 
 /** En otro dispositivo no tenemos eventos del SDK: estimamos cuánto tarda en empezar a sonar. */
 const EXTERNAL_START_DELAY_MS = 900;
+
+/**
+ * Cuánto esperamos a que el SDK confirme que empezó a sonar antes de arrancar el contador igual.
+ * En celulares puede tardar varios segundos; si esperáramos poco, el fragmento sonaría más corto.
+ */
+const SDK_START_TIMEOUT_MS = 12_000;
 
 const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
@@ -113,7 +119,7 @@ export function usePlayer() {
       };
 
       setError(null);
-      const started = ext ? null : waitForPlayback(player!, uri, 5000);
+      const started = ext ? null : waitForPlayback(player!, uri, SDK_START_TIMEOUT_MS);
       await playTrack(target, uri, startMs);
       await (started ?? sleep(EXTERNAL_START_DELAY_MS));
       if (cancelled) {

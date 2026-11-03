@@ -64,9 +64,6 @@ export function pauseDevice(deviceId: string): Promise<void> {
   return spotifyFetch(`/me/player/pause?device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' });
 }
 
-/** El Web Playback SDK no funciona en navegadores de celular. */
-export const isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
 /** Coincide aunque Spotify haya "relinkeado" la canción a otra versión del mercado. */
 export function isSameTrack(sdkTrack: Spotify.SdkTrack, uri: string): boolean {
   return sdkTrack.uri === uri || sdkTrack.linked_from?.uri === uri;
