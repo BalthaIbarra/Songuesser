@@ -3,11 +3,13 @@ import { Backdrop } from '../components/Backdrop';
 import { OptionButton, type OptionState } from '../components/OptionButton';
 import { SoundWaves } from '../components/SoundWaves';
 import type { DifficultyConfig } from '../game/difficulty';
+import { GENRES } from '../game/genres';
 import { buildRounds } from '../game/options';
 import type { Pool } from '../game/pool';
 import { pointsFor, streaks } from '../game/scoring';
 import type { Answer, GameSource, Round, Track } from '../game/types';
 import type { PlayerControls } from '../hooks/usePlayer';
+import { LIKED_SONGS_ID } from '../spotify/library';
 import { getDominantColor } from '../utils/dominantColor';
 import { artistNames, formatPoints } from '../utils/format';
 import { isMuted, playHit, playMiss, setMuted } from '../utils/sfx';
@@ -175,8 +177,30 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
   );
 
   function renderReady() {
+    const kind =
+      source.mode === 'artist' ? 'Artista' : source.mode === 'genre' ? 'Género' : 'Playlist';
+    let cover;
+    if (source.imageUrl) {
+      cover = (
+        <img
+          className={`source-cover ${source.mode === 'artist' ? 'round' : ''}`}
+          src={source.imageUrl}
+          alt=""
+        />
+      );
+    } else if (source.mode === 'genre') {
+      cover = <span className="source-cover">{GENRES.find((g) => g.id === source.id)?.emoji ?? '🎵'}</span>;
+    } else {
+      cover = <span className={`source-cover ${source.id === LIKED_SONGS_ID ? 'liked' : ''}`}>♥</span>;
+    }
+
     return (
       <main className="screen center">
+        <div className="source-intro">
+          {cover}
+          <span className="muted small source-kind">{kind}</span>
+          <h2 className="source-name">{source.name}</h2>
+        </div>
         <p className="muted">
           {rounds.length} rondas · {pool.tracks.length} canciones disponibles
         </p>

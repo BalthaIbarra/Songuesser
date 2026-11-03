@@ -466,6 +466,49 @@ body {
   opacity: 0.55;
 }
 
+/* ---------- Presentación antes de empezar ---------- */
+
+.source-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: fade-up 0.4s ease both;
+}
+
+.source-cover {
+  width: clamp(160px, 42vw, 240px);
+  height: clamp(160px, 42vw, 240px);
+  border-radius: 16px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  font-size: 5rem;
+  background: var(--surface);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 60px rgba(139, 92, 246, 0.25);
+  margin-bottom: 10px;
+  animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.source-cover.round {
+  border-radius: 50%;
+}
+
+.source-cover.liked {
+  background: linear-gradient(135deg, #4c1d95, #8b5cf6);
+}
+
+.source-kind {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.source-name {
+  margin: 0;
+  font-size: clamp(1.5rem, 5vw, 2.1rem);
+  text-align: center;
+}
+
 /* ---------- Ondas de sonido ---------- */
 
 .waves {
