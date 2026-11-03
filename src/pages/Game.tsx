@@ -225,7 +225,7 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
           </span>
           {/* La key reinicia la animación cada vez que cambia la racha. */}
           <span key={streak.current} className={`streak ${streak.current >= 2 ? 'hot' : ''}`}>
-            🔥 {streak.current} {streak.current === 1 ? 'acierto' : 'aciertos'} seguidos
+            🔥 {streak.current} {streak.current === 1 ? 'acierto seguido' : 'aciertos seguidos'}
           </span>
         </div>
 
