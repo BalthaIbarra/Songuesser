@@ -51,8 +51,7 @@ function LoggedIn() {
         Cerrar sesión
       </button>
       <Setup
-        playerReady={player.ready}
-        playerError={player.error}
+        player={player}
         initial={lastChoice}
         onReady={(source, pool, choice) => {
           setLastChoice(choice);

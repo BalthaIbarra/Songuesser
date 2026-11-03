@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { ArtistSearch } from '../components/ArtistSearch';
+import { DevicePicker } from '../components/DevicePicker';
 import { GenrePicker } from '../components/GenrePicker';
 import { PlaylistPicker } from '../components/PlaylistPicker';
 import { DIFFICULTIES, type Difficulty } from '../game/difficulty';
 import { loadPool, type Pool } from '../game/pool';
 import { getRecord, recordKey } from '../game/records';
 import type { GameMode, GameSource } from '../game/types';
+import type { PlayerControls } from '../hooks/usePlayer';
 import { formatPoints } from '../utils/format';
 
 const MODES: { id: GameMode; label: string }[] = [
@@ -22,13 +24,12 @@ export interface SetupChoice {
 }
 
 interface Props {
-  playerReady: boolean;
-  playerError: string | null;
+  player: PlayerControls;
   initial: SetupChoice;
   onReady: (source: GameSource, pool: Pool, choice: SetupChoice) => void;
 }
 
-export function Setup({ playerReady, playerError, initial, onReady }: Props) {
+export function Setup({ player, initial, onReady }: Props) {
   const [mode, setMode] = useState<GameMode>('playlist');
   const [source, setSource] = useState<GameSource | null>(null);
   const [rounds, setRounds] = useState(initial.rounds);
@@ -120,12 +121,13 @@ export function Setup({ playerReady, playerError, initial, onReady }: Props) {
           </p>
         )}
         {error && <p className="error">{error}</p>}
-        {playerError && <p className="error">{playerError}</p>}
+
+        <DevicePicker player={player} />
 
         <button className="btn btn-primary btn-lg btn-block" disabled={!source || loading} onClick={prepare}>
           {progress ?? (source ? `Jugar: ${source.name}` : 'Elegí qué querés jugar')}
         </button>
-        {!playerReady && !playerError && <p className="muted small">Conectando reproductor…</p>}
+        {!player.ready && !player.error && <p className="muted small">Conectando reproductor…</p>}
       </footer>
     </main>
   );

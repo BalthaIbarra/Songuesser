@@ -39,6 +39,34 @@ export function playTrack(deviceId: string, uri: string, positionMs: number): Pr
   });
 }
 
+export interface Device {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface ApiDevice {
+  id: string | null;
+  name: string;
+  type: string;
+  is_restricted: boolean;
+}
+
+/** Dispositivos de Spotify Connect disponibles (app de Spotify abierta en celular, PC, parlante…). */
+export async function getDevices(): Promise<Device[]> {
+  const res = await spotifyFetch<{ devices: ApiDevice[] }>('/me/player/devices');
+  return res.devices
+    .filter((d): d is ApiDevice & { id: string } => !!d.id && !d.is_restricted && d.name !== DEVICE_NAME)
+    .map((d) => ({ id: d.id, name: d.name, type: d.type }));
+}
+
+export function pauseDevice(deviceId: string): Promise<void> {
+  return spotifyFetch(`/me/player/pause?device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' });
+}
+
+/** El Web Playback SDK no funciona en navegadores de celular. */
+export const isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 /** Coincide aunque Spotify haya "relinkeado" la canción a otra versión del mercado. */
 export function isSameTrack(sdkTrack: Spotify.SdkTrack, uri: string): boolean {
   return sdkTrack.uri === uri || sdkTrack.linked_from?.uri === uri;

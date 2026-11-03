@@ -1,13 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPlayer, isSameTrack, loadSdk, playTrack } from '../spotify/player';
+import {
+  createPlayer,
+  isSameTrack,
+  loadSdk,
+  pauseDevice,
+  playTrack,
+  type Device,
+} from '../spotify/player';
 
 const ERROR_MESSAGES: Record<Spotify.ErrorEvent, string> = {
   initialization_error:
-    'Tu navegador no puede reproducir con Spotify. Usá Chrome, Edge o Firefox de escritorio.',
+    'Este navegador no puede reproducir con Spotify. Usá Chrome, Edge o Firefox de escritorio, o elegí otro dispositivo.',
   authentication_error: 'Spotify rechazó la sesión. Cerrá sesión y volvé a entrar.',
   account_error: 'Esta cuenta no puede usar el reproductor web (hace falta Spotify Premium).',
   playback_error: 'Spotify no pudo reproducir la canción.',
 };
+
+/** En otro dispositivo no tenemos eventos del SDK: estimamos cuánto tarda en empezar a sonar. */
+const EXTERNAL_START_DELAY_MS = 900;
+
+const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
 /** Resuelve cuando el SDK informa que `uri` está sonando (o al vencer el timeout). */
 function waitForPlayback(player: Spotify.Player, uri: string, timeoutMs: number): Promise<void> {
@@ -30,6 +42,10 @@ export function usePlayer() {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Otro dispositivo de Spotify Connect elegido en lugar de esta página (null = esta página).
+  const [external, setExternal] = useState<Device | null>(null);
+  const externalRef = useRef<Device | null>(null);
+  externalRef.current = external;
   // Corta el fragmento en curso (lo usa un nuevo play o stop()).
   const cancelRef = useRef<(() => void) | null>(null);
   // Cambia con cada play: permite saber si un fragmento fue reemplazado por otro.
@@ -66,9 +82,14 @@ export function usePlayer() {
     };
   }, []);
 
+  const pauseNow = useCallback(async () => {
+    const ext = externalRef.current;
+    await (ext ? pauseDevice(ext.id) : playerRef.current?.pause())?.catch(() => {});
+  }, []);
+
   /** Debe llamarse dentro de un click: habilita el audio en el navegador. */
   const activate = useCallback(async () => {
-    await playerRef.current?.activateElement();
+    if (!externalRef.current) await playerRef.current?.activateElement();
   }, []);
 
   /**
@@ -77,8 +98,10 @@ export function usePlayer() {
    */
   const playFragment = useCallback(
     async (uri: string, startMs: number, lengthMs: number): Promise<boolean> => {
+      const ext = externalRef.current;
       const player = playerRef.current;
-      if (!player || !deviceId) throw new Error('El reproductor todavía no está listo');
+      const target = ext?.id ?? deviceId;
+      if (!target || (!ext && !player)) throw new Error('El reproductor todavía no está listo');
 
       cancelRef.current?.();
       const playId = ++playIdRef.current;
@@ -90,13 +113,13 @@ export function usePlayer() {
       };
 
       setError(null);
-      const started = waitForPlayback(player, uri, 5000);
-      await playTrack(deviceId, uri, startMs);
-      await started;
+      const started = ext ? null : waitForPlayback(player!, uri, 5000);
+      await playTrack(target, uri, startMs);
+      await (started ?? sleep(EXTERNAL_START_DELAY_MS));
       if (cancelled) {
         // stop() llegó mientras arrancaba: la canción empezó igual, hay que pausarla.
         // Si la reemplazó otro fragmento, no tocamos nada.
-        if (playId === playIdRef.current) await player.pause().catch(() => {});
+        if (playId === playIdRef.current) await pauseNow();
         return false;
       }
 
@@ -111,21 +134,31 @@ export function usePlayer() {
       if (cancelled) return false;
 
       cancelRef.current = null;
-      await player.pause();
+      await pauseNow();
       setIsPlaying(false);
       return true;
     },
-    [deviceId],
+    [deviceId, pauseNow],
   );
 
   const stop = useCallback(async () => {
     cancelRef.current?.();
     cancelRef.current = null;
     setIsPlaying(false);
-    await playerRef.current?.pause().catch(() => {});
-  }, []);
+    await pauseNow();
+  }, [pauseNow]);
 
-  return { ready: deviceId !== null, error, isPlaying, activate, playFragment, stop };
+  return {
+    ready: external !== null || deviceId !== null,
+    /** Error del reproductor de esta página (no aplica si se eligió otro dispositivo). */
+    error: external ? null : error,
+    isPlaying,
+    external,
+    selectDevice: setExternal,
+    activate,
+    playFragment,
+    stop,
+  };
 }
 
 export type PlayerControls = ReturnType<typeof usePlayer>;

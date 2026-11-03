@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Backdrop } from '../components/Backdrop';
 import { OptionButton, type OptionState } from '../components/OptionButton';
+import { SoundWaves } from '../components/SoundWaves';
 import type { DifficultyConfig } from '../game/difficulty';
 import { buildRounds } from '../game/options';
 import type { Pool } from '../game/pool';
 import { pointsFor, streaks } from '../game/scoring';
 import type { Answer, GameSource, Round, Track } from '../game/types';
 import type { PlayerControls } from '../hooks/usePlayer';
+import { getDominantColor } from '../utils/dominantColor';
 import { artistNames, formatPoints } from '../utils/format';
+import { isMuted, playHit, playMiss, setMuted } from '../utils/sfx';
 import { Summary } from './Summary';
 
 type Phase = 'ready' | 'round' | 'finished';
@@ -30,6 +33,9 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
   const [error, setError] = useState<string | null>(null);
   // Portada de la última respuesta: se mantiene mientras el fondo se desvanece al pasar de ronda.
   const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
+  // Color predominante de la portada, asociado a su URL para no mezclar rondas.
+  const [tint, setTint] = useState<{ url: string; color: string } | null>(null);
+  const [muted, setMutedState] = useState(isMuted);
   // Momento en que empezó a sonar la ronda actual (los "volver a escuchar" no lo reinician).
   const roundStartRef = useRef<number | null>(null);
 
@@ -41,6 +47,19 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
   }, [isPlaying]);
 
   const round = rounds[index];
+
+  // Calculamos el color mientras suena la ronda, así ya está listo al responder.
+  const coverUrl = round?.track.album.imageUrl ?? null;
+  useEffect(() => {
+    if (!coverUrl) return;
+    let cancelled = false;
+    getDominantColor(coverUrl).then((color) => {
+      if (!cancelled && color) setTint({ url: coverUrl, color });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [coverUrl]);
   const answer = answers[index] as Answer | undefined;
   const score = answers.reduce((sum, a) => sum + a.points, 0);
   const streak = streaks(answers.map((a) => a.correct));
@@ -76,7 +95,14 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
       { chosenId: trackId, correct, elapsedMs, points: pointsFor(correct, elapsedMs, difficulty) },
     ]);
     setBackdropUrl(round.track.album.imageUrl);
+    if (correct) playHit();
+    else playMiss();
     void stop();
+  }
+
+  function toggleMute() {
+    setMuted(!muted);
+    setMutedState(!muted);
   }
 
   function next() {
@@ -103,7 +129,12 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
 
   return (
     <div className="page">
-      <Backdrop imageUrl={backdropUrl} visible={phase === 'round' && !!answer} />
+      <Backdrop
+        imageUrl={backdropUrl}
+        // Con cada acierto, el fondo toma el color de la portada.
+        tint={answer?.correct && tint?.url === backdropUrl ? tint.color : null}
+        visible={phase === 'round' && !!answer}
+      />
       <header className="game-header">
         <button className="btn btn-ghost" onClick={onExit}>
           ← Salir
@@ -114,9 +145,19 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
             {difficulty.label} · {difficulty.fragmentMs / 1000} s{pool.note ? ` · ${pool.note}` : ''}
           </span>
         </div>
-        <span className="muted small">
-          {phase === 'round' ? `${index + 1}/${rounds.length}` : `${rounds.length} rondas`}
-        </span>
+        <div className="header-right">
+          <span className="muted small">
+            {phase === 'round' ? `${index + 1}/${rounds.length}` : `${rounds.length} rondas`}
+          </span>
+          <button
+            className="btn btn-ghost icon-btn"
+            onClick={toggleMute}
+            aria-label={muted ? 'Activar sonidos' : 'Silenciar sonidos'}
+            title={muted ? 'Activar sonidos de acierto/error' : 'Silenciar sonidos de acierto/error'}
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
+        </div>
       </header>
       {phase === 'ready' && renderReady()}
       {phase === 'round' && renderRound()}
@@ -142,7 +183,8 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
         {rounds.length < roundsCount && (
           <p className="muted small">No hay canciones suficientes para {roundsCount} rondas.</p>
         )}
-        <button className="btn btn-primary btn-lg" disabled={!player.ready} onClick={() => start(rounds)}>
+        {player.external && <p className="muted small">🔈 Suena en: {player.external.name}</p>}
+        <button className="btn btn-primary btn-lg glow" disabled={!player.ready} onClick={() => start(rounds)}>
           {player.ready ? 'Empezar partida' : 'Conectando reproductor…'}
         </button>
         {player.error && <p className="error">{player.error}</p>}
@@ -157,14 +199,15 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
           <span>
             <strong>{formatPoints(score)}</strong> <span className="muted">pts</span>
           </span>
-          <span className={`streak ${streak.current >= 2 ? 'hot' : ''}`}>
+          {/* La key reinicia la animación cada vez que cambia la racha. */}
+          <span key={streak.current} className={`streak ${streak.current >= 2 ? 'hot' : ''}`}>
             🔥 {streak.current} {streak.current === 1 ? 'acierto' : 'aciertos'} seguidos
           </span>
         </div>
 
         <section className="stage">
           {answer ? (
-            <div className="reveal">
+            <div className="reveal" key={`reveal-${index}`}>
               {round.track.album.imageUrl && <img src={round.track.album.imageUrl} alt="" />}
               <p className={answer.correct ? 'hit-text' : 'miss-text'}>
                 {answer.correct
@@ -175,8 +218,16 @@ export function Game({ source, pool, roundsCount, difficulty, player, onExit }: 
               <span className="muted">{artistNames(round.track)}</span>
             </div>
           ) : (
-            <div className="mystery">
-              <span className="mystery-cover">{player.isPlaying ? '♪' : '?'}</span>
+            <div className="mystery" key={`mystery-${index}`}>
+              <div className={`mystery-cover ${player.isPlaying ? 'playing' : ''}`}>
+                <SoundWaves active={player.isPlaying} />
+              </div>
+              <div className="fragment-progress">
+                {/* Se monta de nuevo en cada reproducción, así la barra arranca desde cero. */}
+                {player.isPlaying && (
+                  <span style={{ animationDuration: `${difficulty.fragmentMs}ms` }} />
+                )}
+              </div>
               <p className="muted">{player.isPlaying ? 'Sonando…' : '¿Qué canción es?'}</p>
             </div>
           )}
