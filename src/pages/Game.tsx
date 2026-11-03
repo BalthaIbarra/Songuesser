@@ -97,10 +97,16 @@ export function Game({ source, pool, roundsCount, player, onExit }: Props) {
     </header>
   );
 
-  if (phase === 'ready') {
+  return (
+    <div className="page">
+      {header}
+      {phase === 'ready' ? renderReady() : phase === 'finished' ? renderFinished() : renderRound()}
+    </div>
+  );
+
+  function renderReady() {
     return (
       <main className="screen center">
-        {header}
         <p className="muted">
           {rounds.length} rondas · {pool.tracks.length} canciones disponibles
         </p>
@@ -115,10 +121,9 @@ export function Game({ source, pool, roundsCount, player, onExit }: Props) {
     );
   }
 
-  if (phase === 'finished') {
+  function renderFinished() {
     return (
       <main className="screen">
-        {header}
         <h2 className="title center-text">
           {hits} de {rounds.length} aciertos
         </h2>
@@ -144,52 +149,52 @@ export function Game({ source, pool, roundsCount, player, onExit }: Props) {
     );
   }
 
-  return (
-    <main className="screen game">
-      {header}
+  function renderRound() {
+    return (
+      <main className="screen game">
+        <section className="stage">
+          {answered ? (
+            <div className="reveal">
+              {round.track.album.imageUrl && <img src={round.track.album.imageUrl} alt="" />}
+              <p className={chosenId === round.track.id ? 'hit-text' : 'miss-text'}>
+                {chosenId === round.track.id ? '¡Correcto!' : 'Era esta:'}
+              </p>
+              <strong>{round.track.name}</strong>
+              <span className="muted">{artistNames(round.track)}</span>
+            </div>
+          ) : (
+            <div className="mystery">
+              <span className="mystery-cover">{player.isPlaying ? '♪' : '?'}</span>
+              <p className="muted">{player.isPlaying ? 'Sonando…' : '¿Qué canción es?'}</p>
+            </div>
+          )}
+        </section>
 
-      <section className="stage">
-        {answered ? (
-          <div className="reveal">
-            {round.track.album.imageUrl && <img src={round.track.album.imageUrl} alt="" />}
-            <p className={chosenId === round.track.id ? 'hit-text' : 'miss-text'}>
-              {chosenId === round.track.id ? '¡Correcto!' : 'Era esta:'}
-            </p>
-            <strong>{round.track.name}</strong>
-            <span className="muted">{artistNames(round.track)}</span>
-          </div>
-        ) : (
-          <div className="mystery">
-            <span className="mystery-cover">{player.isPlaying ? '♪' : '?'}</span>
-            <p className="muted">{player.isPlaying ? 'Sonando…' : '¿Qué canción es?'}</p>
-          </div>
-        )}
-      </section>
+        <div className="options">
+          {round.options.map((t) => (
+            <OptionButton
+              key={t.id}
+              track={t}
+              state={optionState(t)}
+              disabled={answered}
+              onClick={() => choose(t.id)}
+            />
+          ))}
+        </div>
 
-      <div className="options">
-        {round.options.map((t) => (
-          <OptionButton
-            key={t.id}
-            track={t}
-            state={optionState(t)}
-            disabled={answered}
-            onClick={() => choose(t.id)}
-          />
-        ))}
-      </div>
+        {error && <p className="error">{error}</p>}
 
-      {error && <p className="error">{error}</p>}
-
-      <div className="row">
-        <button className="btn" disabled={player.isPlaying} onClick={() => play(round)}>
-          ↻ Volver a escuchar
-        </button>
-        {answered && (
-          <button className="btn btn-primary" onClick={next}>
-            {index + 1 >= rounds.length ? 'Ver resultado' : 'Siguiente →'}
+        <div className="row">
+          <button className="btn" disabled={player.isPlaying} onClick={() => play(round)}>
+            ↻ Volver a escuchar
           </button>
-        )}
-      </div>
-    </main>
-  );
+          {answered && (
+            <button className="btn btn-primary" onClick={next}>
+              {index + 1 >= rounds.length ? 'Ver resultado' : 'Siguiente →'}
+            </button>
+          )}
+        </div>
+      </main>
+    );
+  }
 }
