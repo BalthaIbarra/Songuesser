@@ -32,6 +32,8 @@ export function usePlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   // Corta el fragmento en curso (lo usa un nuevo play o stop()).
   const cancelRef = useRef<(() => void) | null>(null);
+  // Cambia con cada play: permite saber si un fragmento fue reemplazado por otro.
+  const playIdRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +81,7 @@ export function usePlayer() {
       if (!player || !deviceId) throw new Error('El reproductor todavía no está listo');
 
       cancelRef.current?.();
+      const playId = ++playIdRef.current;
       let cancelled = false;
       let finish = () => {};
       cancelRef.current = () => {
@@ -90,7 +93,12 @@ export function usePlayer() {
       const started = waitForPlayback(player, uri, 5000);
       await playTrack(deviceId, uri, startMs);
       await started;
-      if (cancelled) return false;
+      if (cancelled) {
+        // stop() llegó mientras arrancaba: la canción empezó igual, hay que pausarla.
+        // Si la reemplazó otro fragmento, no tocamos nada.
+        if (playId === playIdRef.current) await player.pause().catch(() => {});
+        return false;
+      }
 
       setIsPlaying(true);
       await new Promise<void>((resolve) => {
@@ -114,8 +122,10 @@ export function usePlayer() {
     cancelRef.current?.();
     cancelRef.current = null;
     setIsPlaying(false);
-    await playerRef.current?.pause();
+    await playerRef.current?.pause().catch(() => {});
   }, []);
 
   return { ready: deviceId !== null, error, isPlaying, activate, playFragment, stop };
 }
+
+export type PlayerControls = ReturnType<typeof usePlayer>;
