@@ -673,8 +673,12 @@ body {
   background: #221e31;
 }
 
+/*
+ * Si el sistema pide "reducir movimiento" (en Windows: Accesibilidad → Efectos de animación),
+ * apagamos las animaciones decorativas. Las ondas y la barra de progreso quedan: son parte del juego.
+ */
 @media (prefers-reduced-motion: reduce) {
-  *,
+  *:not(.waves span):not(.fragment-progress span),
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
